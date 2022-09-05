@@ -6,7 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Book;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
-
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\DB;
 
 class BookController extends Controller
@@ -18,8 +18,9 @@ class BookController extends Controller
             'author' => 'required|string', 
             'price' => 'required|integer', 
             'quantity' => 'required|integer',
-            'image' => 'required',  
+            'image' => 'required|image|mimes:jpg,png,jpeg,gif,svg,webp|max:5MB',  
         ]);
+
         $getUser = $request->user()->id;
         $book = new Book();
         $book->user_id = $getUser;
@@ -28,10 +29,19 @@ class BookController extends Controller
         $book->author = $request->author;
         $book->price = $request->price;
         $book->quantity = $request->quantity;
-         $book->image = $request->image;
+
+       
+        $path = Storage::disk('s3')->put('images', $request->image);
+        $url = env('AWS_URL') . $path;
+        $book->image = $url;
+
         $book->save();
+        $response = $book;
         return response()->json(['data' => $book, 'success' => 200]);
-}
+        Log::channel('custom')->debug("Book is added sucessfully");
+    }
+       
+
  public function updateBook(Request $request){
     $request->validate([
         'id' => 'required',
@@ -39,13 +49,14 @@ class BookController extends Controller
         'description' => 'required|string|min:5|max:1000',
         'author' => 'required|string', 
         'price' => 'required|integer', 
-        'quantity' => 'required|integer',
+        //'quantity' => 'required|integer',
         'image' => 'required',  
     ]);
     $data = DB::table('books')->where('id', $request->id)->update(['name'=>$request->name, 
     'description'=>$request->description, 'author'=>$request->author, 
     'price'=>$request->price, 'quantity'=>$request->quantity, 'image'=>$request->image]);
     return response()->json(['data' ,'success' =>200]);
+    Log::channel('custom')->debug("Book is updated");
 }
 public function showBooks(){
     $books = Book::all();
@@ -79,6 +90,14 @@ public function searchBook(Request $request){
        Log::channel('custom')->error("Book is not available");
        echo('Book is not available');
     }
+}
+public function sortOnPriceLowToHigh(){
+    $books = Book::select('*')->orderBy('price')->paginate(3);
+    return $books;
+}
+public function sortOnPriceHighToLow(){
+    $books = Book::select('*')->orderBydesc('price')->get();
+    return $books;
 }
 public function updateQuantityById(Request $request){
     $request->validate([

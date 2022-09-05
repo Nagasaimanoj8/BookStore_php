@@ -20,14 +20,13 @@ class CartController extends Controller
         ]);
         $cart = new Cart();
         $book = new Book();
-        // $checkUser = $request->user()->id;
-        // $cart->id = $checkUser;
+        $checkUser = $request->user()->id;
+        $cart->user_id = $checkUser;
         $checkBookId = DB::table('books')->where('id', $request->book_id)->first();
 
-        // $checkBookInCart = DB::table('cart')->where('book_id', $request->book_id)->where('id', $checkUser)->first();
-        if(!$checkBookId){
+        $checkBookInCart = DB::table('cart')->where('book_id', $request->book_id)->where('user_id', $checkUser)->first();
+        if($checkBookInCart){
             Log::channel('custom')->error("Book already exists in cart");
-            echo("Book is not available");
         }
         else{
             if($checkBookId){
@@ -38,7 +37,6 @@ class CartController extends Controller
             }
             else{
                 Log::channel('custom')->error("Book is not available");
-                echo("Book is not available");
             }
         }      
     }
@@ -54,17 +52,40 @@ class CartController extends Controller
             Log::channel('custom')->error("id is invalid");
         }
     }
+    public function updateBookInCart(Request $request){
+        $request->validate([
+            'id' => 'required',
+            'book_id' => 'required|integer',
+            'book_quantity' => 'required|integer'
+        ]);
+        $cart = new Cart();
+        $checkUser = $request->user()->id;
+        $cart->user_id = $checkUser;
+        $checkBookId = DB::table('books')->where('id', $request->book_id)->first();
+        if($checkBookId){
+            $response = DB::table('cart')->where('id', $request->id)->update(['book_id'=>$request->book_id, 'user_id'=>$checkUser, 'book_quantity'=>$request->book_quantity]);
+            return response()->json(["message"=>"book updated successfully", "successstatus"=>200]);
+        }
+        else{
+            Log::channel('custom')->error("Book is not available");
+        }
+    }
     public function getAllBooks(Request $request){
-        $cart = Cart::all();
-        return $cart;
+        $books = Cart::all();
+        return $books;
+    }
+    public function updateQuantityInCart(Request $request){
+        $request->validate([
+            'id' =>'required|integer',
+            'book_quantity' => 'required|integer'
+        ]);
+
+        $response = DB::table('cart')->where('id', $request->id)->update(['book_quantity'=>$request->book_quantity]);
+        if($response){
+            return response()->json(["message"=>"Quantity updated"]);
         }
-        public function updateBookInCart(Request $request){
-            $request->validate([
-                'id' => 'required',
-                'book_id' => 'required|integer',
-                'book_quantity' => 'required|integer'
-            ]);          
-                $response = DB::table('cart')->where('id', $request->id)->update(['book_id'=>$request->book_id,  'book_quantity'=>$request->book_quantity]);
-                return response()->json(["$response"=>"book updated successfully", "successstatus"=>200]);
-            }
+        else{
+            Log::channel('custom')->error("id is invalid");
         }
+    }
+}
